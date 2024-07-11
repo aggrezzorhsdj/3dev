@@ -1,0 +1,28 @@
+@import "../../../node_modules/bootstrap/scss/functions";
+@import "../../../node_modules/bootstrap/scss/variables";
+
+.edit {
+	height: 100%;
+
+	&__sidebar {
+		background-color: var(--bs-primary);
+		height: calc(100vh - 46px);
+		color: white;
+		display: flex;
+		flex-direction: column;
+
+		&-body {
+			padding: map-get($spacers, 4);
+			flex: 1;
+			overflow-y: auto;
+		}
+
+		&-toolbar {
+			padding: map-get($spacers, 4);
+		}
+	}
+
+	&__content {
+		height: 100%;
+	}
+}

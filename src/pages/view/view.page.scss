@@ -1,0 +1,19 @@
+@import "../../../node_modules/bootstrap/scss/functions";
+@import "../../../node_modules/bootstrap/scss/variables";
+
+.view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+
+	&__body {
+		flex: 1;
+	}
+
+	&__toolbar {
+		color: #fff;
+		background-color: var(--bs-primary);
+		padding: map-get($spacers, 4);
+		flex: 0 0 200px;
+	}
+}

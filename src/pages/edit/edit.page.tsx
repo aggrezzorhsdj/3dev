@@ -1,139 +1,157 @@
-import {FC, FormEvent, memo, useEffect, useState} from "react";
+import React, { FC, memo, Suspense, useEffect, useState } from "react"
 import {useParams} from "react-router-dom";
-import {Button, Col, Form, Row} from "react-bootstrap";
 import "./edit.page.scss";
 import Setting from "../../components/setting/setting.component";
 import {MODELS} from "../../data/models";
 import Model from "../../components/model/model.component";
-import {Canvas} from "@react-three/fiber";
-import {Environment, OrbitControls, useGLTF} from "@react-three/drei";
 import {Mesh, MeshStandardMaterial} from "three";
-import {GLTFResult, ParamType} from "../../models/edit.model";
-import {ModelDto} from "../../models/model.model";
+import {ParamType} from "../../models/edit.model";
+import { Spin, Button, Form, Layout, notification } from "antd"
+import "../../index.scss";
+import { EditFragment } from "./models/edit.model"
+import { HttpService } from "../../services/http.service"
+import { EditActionsType, getModel, updateModel } from "./store/edit.actions"
+import { ModelMesh } from "../../models/model.model"
+import { useEditDispatch, useEditSelector } from "./store/edit.hooks"
+import { selectModel } from "./store/edit.selectors"
+import { Wrapper } from "../../components/wrapper.component"
+import { store } from "./store/edit.store"
 
-const Edit: FC = memo(() => {
-	const {name} = useParams(),
-		modelIndex = MODELS.findIndex(item => item.name === name),
-		[modelInfo, setModelInfo] = useState(MODELS[modelIndex] as ModelDto),
+export const EditService: HttpService<EditActionsType> = new HttpService<EditActionsType>();
+
+export const EditWrapper: FC<EditFragment> = memo(({api}) => {
+	return <Wrapper node={<Edit api={api}/>} store={store}/>
+})
+
+const Edit: FC<EditFragment> = memo((props) => {
+	const {id, api} = props,
+		params = useParams(),
+		[modelMeshes, setModelMeshes] = useState<ModelMesh[]>([]),
 		[meshes, setMeshes] = useState<Mesh[]>([]),
-		gltfResult: GLTFResult = useGLTF(modelInfo.url) as GLTFResult;
+		[loading, setLoading] = useState<boolean>(false),
+		dispatch = useEditDispatch(),
+		model = useEditSelector(selectModel);
+
+	const [notificationService, contextHolder] = notification.useNotification({
+		getContainer: () => document.querySelector(".edit") as HTMLElement
+	});
 
 	useEffect(() => {
-		const convertedNodesToMesh: Mesh[] = [];
-		for (const key in gltfResult?.nodes) {
-			if ("isMesh" in gltfResult.nodes[key] && gltfResult.nodes[key]) {
-				const mesh = gltfResult.nodes[key] as Mesh;
-				const meshParams = modelInfo.mesh.find(m => m.name === mesh.name);
-				if (meshParams?.color) {
-					(mesh.material as MeshStandardMaterial).color.set(meshParams.color);
-				}
+		EditService.updateApi(api);
 
-				convertedNodesToMesh.push(gltfResult.nodes[key] as Mesh);
-			}
-		}
-
-		setMeshes(convertedNodesToMesh);
-	}, []);
-
+		dispatch(getModel(id ?? Number(params.id))).then(data => {
+			setModelMeshes(data.mesh);
+		})
+	}, [])
 	const updateModelInfoMesh = (name: string, params: any): void => {
-		const paramIndex = modelInfo.mesh?.findIndex(m => m.name === name) as number;
+		const modelMesh = modelMeshes?.find(m => m.name === name);
 
-		if (paramIndex !== -1) {
-			modelInfo.mesh[paramIndex] = {
-				...modelInfo.mesh[paramIndex],
-				...params
-			}
+		if (modelMesh) {
+			const nextMeshes = modelMeshes.map((item) => {
+				return item.name === name ? {...item, ...params} : item;
+			})
+			setModelMeshes(nextMeshes);
 		} else {
-			modelInfo.mesh?.push({
-				name,
-				...params
-			});
+			setModelMeshes([
+				...modelMeshes,
+				{
+					name,
+					...params
+				}
+			])
 		}
+
+		console.log(modelMeshes);
 	}
 
-	const changeHandler = (event: FormEvent, item: Mesh, type: ParamType) => {
+	const changeHandler = (value: string | number | boolean, item: Mesh, type: ParamType) => {
 		const index = meshes.findIndex(m => m.name === item.name);
 
 		if (index !== -1) {
-			const element = event.target as HTMLInputElement;
 			switch (type) {
 				case "color":
-					(meshes[index].material as MeshStandardMaterial).color.set(element.value);
-					updateModelInfoMesh(item.name, {color: element.value});
+					(meshes[index].material as MeshStandardMaterial).color.set(value.toString());
+					updateModelInfoMesh(item.name, {color: value});
 				break;
 				case "enabled":
-					updateModelInfoMesh(item.name, {enabled: element.checked});
+					updateModelInfoMesh(item.name, {enabled: value});
 			}
-
-			setModelInfo({...modelInfo});
 		}
 
 		setMeshes([...meshes]);
 	}
 
 	const saveModelInfo = (): void => {
-		MODELS[modelIndex] = modelInfo;
+		setLoading(true);
+		dispatch(updateModel({ ...model, mesh: modelMeshes }))
+			.then(() => {
+				notificationService.success({
+					message: "Model updated",
+				})
+			})
+			.finally(() => setLoading(false));
 	};
 
 	return (
-		<Row className="edit">
-			<Col lg={3}>
-				<div className="edit__sidebar">
-					<div className="edit__sidebar-body">
-						<h2>{name}</h2>
-						<div className="edit__item">
-							<h3>Basic</h3>
-							<Setting label="Enable configurator" type="switcher"/>
-						</div>
+		<>
+			{contextHolder}
+			{model ? <Layout className="edit">
+				<Layout.Header className="edit__header">
+					<h1 className="edit__title">Edit model {model.name}</h1>
+				</Layout.Header>
+				<Layout.Content>
+					<Layout className="edit__wrapper">
+						<Layout.Sider className="edit__sidebar" width={300}>
+							<div className="edit__sidebar-inner">
 
-						<div className="edit__item">
-							<h3>Components</h3>
-							<Form>
-								{meshes.map(item => {
-									const mesh = modelInfo.mesh?.find(m => m.name === item.name);
-									return <div className="mb-4" key={item.name}>
-										<h4>{item.name}</h4>
-
-										<Setting
-											label="Enable"
-											type="switcher"
-											value={mesh?.enabled || false}
-											onChange={(event) => changeHandler(event, item, "enabled")}
-										/>
-
-										<Setting
-											label="Color"
-											type="color"
-											value={mesh?.color || `#${(item.material as MeshStandardMaterial).color.getHexString()}`}
-											onChange={(event) => changeHandler(event, item, "color")}
-										/>
+								<div className="edit__sidebar-body">
+									<div className="edit__item">
+										<h3>Basic</h3>
+										{<Setting label="Enable configurator" type="switcher" />}
 									</div>
-								})}
-							</Form>
-						</div>
-					</div>
-					<div className="edit__sidebar-toolbar d-grid">
-						<Button
-							variant="secondary"
-							size="lg"
-							onClick={() => saveModelInfo()}
-						>Save</Button>
-					</div>
-				</div>
-			</Col>
-			<Col lg={9}>
-				<div className="edit__content">
-					<Canvas shadows camera={{position: [0, 0, 4], fov: 45}}>
-						<ambientLight intensity={0.7}/>
-						<spotLight intensity={0.5} angle={0.1} penumbra={1} position={[10, 15, 10]} castShadow/>
-						<Model meshes={meshes}/>
-						<Environment preset="city"/>
-						<OrbitControls minPolarAngle={Math.PI / 2} maxPolarAngle={Math.PI / 2} enableZoom={false}
-									   enablePan={false}/>
-					</Canvas>
-				</div>
-			</Col>
-		</Row>
+									<div className="edit__item">
+										<h3>Components</h3>
+										<Form>
+											{meshes.map(item => {
+												const mesh = modelMeshes?.find(m => m.name === item.name)
+												return <div className="mb-4" key={item.name}>
+													<h4>{item.name}</h4>
+
+													<Setting
+														label="Enable"
+														type="switcher"
+														value={mesh?.enabled || false}
+														onChange={(event) => changeHandler(event, item, "enabled")}
+													/>
+
+													<Setting
+														label="Color"
+														type="color"
+														value={mesh?.color || `#${(item.material as MeshStandardMaterial).color.getHexString()}`}
+														onChange={(event) => changeHandler(event, item, "color")}
+													/>
+												</div>
+											})}
+										</Form>
+									</div>
+								</div>
+								<div className="edit__sidebar-toolbar d-grid">
+									<Button style={{width: "100%"}} type="primary" onClick={() => saveModelInfo()} loading={loading}>Save</Button>
+								</div>
+							</div>
+						</Layout.Sider>
+						<Layout.Content className="edit__content">
+							<Suspense fallback={<Spin/>}>
+								<Model
+									modelDto={model}
+									onMeshes={(value: Mesh[]) => value && setMeshes(value)}
+								/>
+							</Suspense>
+						</Layout.Content>
+					</Layout>
+				</Layout.Content>
+			</Layout> : <Spin/>}
+		</>
 	);
 });
 

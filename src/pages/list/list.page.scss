@@ -1,0 +1,24 @@
+.list {
+	&__title {
+		margin: 0;
+	}
+
+	&__page {
+		padding: 5px 0;
+		position: relative;
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+
+		.ant-notification, .ant-message {
+			position: absolute;
+		}
+	}
+
+	&__inner {
+		flex: 1;
+		overflow-y: auto;
+		padding-right: 10px;
+	}
+}

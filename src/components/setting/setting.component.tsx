@@ -1,36 +1,42 @@
-import {FC, FormEventHandler, memo, ReactElement} from "react";
-import {Form} from "react-bootstrap";
+import React, { FC, FormEvent, memo, ReactElement } from "react"
+import { ColorPicker, Form, Select, Switch } from "antd"
 import "./setting.component.scss";
+import type { AggregationColor } from "antd/es/color-picker/color"
+import { ColorValueType } from "antd/es/color-picker/interface"
 
 export type SettingItemType = "switcher" | "dropdown" | "color";
 
-export interface SettingItem {
+export type SettingItem = {
 	label: string;
 	type: SettingItemType;
 	value?: string | boolean;
-	onChange?: FormEventHandler;
+	onChange?: (event: string | number | boolean) => void;
 	items?: string[];
 }
 
-const Setting: FC<SettingItem> = memo((item) => {
+export type ColorPickerOnChange = (value: AggregationColor, css: string) => void;
+
+const Setting: FC<SettingItem> = memo((item: SettingItem) => {
 	let value: ReactElement<Element>;
 
 	switch (item.type) {
 		case "switcher":
-			value = <Form.Switch checked={item.value as boolean} onChange={item.onChange}></Form.Switch>;
+			value = <Switch onChange={(checked) => item.onChange && item.onChange(checked)} checked={item.value as boolean}></Switch>;
 			break;
 		case "dropdown":
-			value = <Form.Select onChange={item.onChange}></Form.Select>;
+			value = <Select onChange={(event: FormEvent) => item.onChange && item.onChange((event.target as HTMLSelectElement).value)}></Select>;
 			break;
 		case "color":
-			value = <Form.Control placeholder={item.label} type="color" value={item.value as string} onChange={item.onChange}></Form.Control>;
+			value = <ColorPicker
+				value={item.value as ColorValueType}
+				onChange={(_, css: string) => item.onChange && item.onChange(css)}
+			></ColorPicker>;
 			break;
 	}
 	return (
-		<Form.Group className="d-flex justify-content-between align-items-center mb-2">
-			<Form.Label>{item.label}</Form.Label>
+		<Form.Item label={item.label}>
 			{value}
-		</Form.Group>
+		</Form.Item>
 	);
 });
 

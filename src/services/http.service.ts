@@ -8,14 +8,14 @@ export class HttpService<F extends string> {
 		this.api = api;
 	}
 
-	public request<T, B = void>(action: F, data?: RequestParams, body?: B): Promise<T> {
+	public request<T, B = void>(action: F, data?: RequestParams, body?: B, isFormData = false): Promise<T> {
 		const {url, method, params} = this.api[action];
 		const requestUrl = this.resolveUrl(url, data, params);
 		switch (method) {
 			case "GET":
 				return this.get<T>(requestUrl);
 			case "POST":
-				return this.post<T, B>(requestUrl, body);
+				return this.post<T, B>(requestUrl, body, isFormData);
 			case "DELETE":
 				return this.delete<T>(requestUrl);
 		}
@@ -25,8 +25,15 @@ export class HttpService<F extends string> {
 			.then(res => res.json())
 	}
 
-	public post<T, B = void>(url: string, body?: B): Promise<T> {
-		return fetch(url, {method: "POST", body: JSON.stringify(body), headers: {"Content-Type": "application/json"}})
+	public post<T, B = void>(url: string, body?: B, isFormData = false): Promise<T> {
+		const headers = {
+			"Content-Type": "application/json"
+		}
+		return fetch(url, {
+			method: "POST",
+			body: isFormData ? body as BodyInit : JSON.stringify(body),
+			...(!isFormData) && {headers}
+		})
 			.then(res => res.json())
 	}
 

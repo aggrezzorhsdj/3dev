@@ -1,7 +1,6 @@
-import { Dispatch, ThunkAction } from "@reduxjs/toolkit"
+import { Dispatch } from "@reduxjs/toolkit"
 import { ModelDto } from "../../../models/model.model"
 import { FragmentApi } from "../../../models/fragment.model"
-import { RootState } from "./list.store"
 import { ListService } from "../list.page"
 
 export enum ListActionsType {
@@ -48,7 +47,7 @@ export const getModels = () => {
 };
 export const addModel = (item: FormData) => {
 	return async (dispatch: Dispatch<ListActions>) => {
-		return ListService.request<ModelDto, FormData>(ListActionsType.ADD_MODEL, null, item).then((payload) => {
+		return ListService.request<ModelDto, FormData>(ListActionsType.ADD_MODEL, null, item, true).then((payload) => {
 			dispatch({ type: ListActionsType.ADD_MODEL, payload })
 		})
 	}
